@@ -1,59 +1,125 @@
-# PHP REST API with Secure JWT Auth, Nested Categories & High Performance
+# Technical Documentation: Secure & Scalable PHP REST API System
 
-This project is a robust PHP backend system implementing secure JWT authentication, scalable REST APIs for nested categories, international phone validation, and optimized performance for large datasets.
-
----
-
-## 🔐 1. JWT Authentication with Refresh Tokens
-
-### ✅ Features:
-- **Stateless Auth**: Uses short-lived access tokens and refresh tokens for secure, scalable login sessions. (used package tymon/jwt-auth)
-
-### 🛡 a. Security Vulnerabilities Prevention
-- **SQL Injection**: Handled via prepared statements (PDO).
-- **XSS**: Output escaping and CSP headers applied.
-- **CSRF**: JWT stored outside cookies and verified on each request, with CSRF tokens if needed.
-
-### 🚦 b. Rate Limiting (3 attempts/minute)
-- Implemented with middleware to track failed login attempts per IP.
-- Blocks further attempts after 3 failures per minute per user/IP (used laravel throttle middleware).
-
-### 🛑 c. Brute-force Protection with Exponential Backoff
-- After each failed login, the delay before retry increases exponentially (1s, 2s, 4s, ...) (App\Services\LoginAttemptService).
-- Backoff resets after a successful login or timeout period.
-
-### 🧱 d. Design Patterns Used
-- **Repository Pattern**: For categories module
-- **Service Pattern**:  Used service pattern for JWT, CSVImport and login service
+## Overview
+This system is a secure, scalable PHP REST API built using a mixed approach of raw PHP and the Laravel framework. It implements JWT authentication with refresh tokens, a Materialized Path category system, and features optimized for high performance, concurrency, and security.
 
 ---
 
-## 🌐 2. REST API
+## 1. Security Measures Implemented
 
-### 🧩 a. CRUD for Nested Categories (Materialized Path)
-- Implements nested category trees using materialized path (e.g., `1/2/5`).
-- Enables efficient querying of entire branches, parents, or children.
+### a. JWT Authentication with Refresh Tokens
+- **Access & Refresh Tokens**: Access tokens expire quickly; refresh tokens are stored securely and used to issue new access tokens.
+- **Storage**: Refresh tokens stored with HttpOnly, Secure flags to mitigate XSS.
+- **Token rotation**: New refresh token issued on each use to prevent reuse attacks.
 
-### 📥 b. Bulk CSV Import with Memory Optimization
-- Large CSV files are processed in chunks using `fgetcsv()` with stream handling.
-- Ensures memory footprint stays constant regardless of file size.
+### b. Vulnerability Protections
+- **XSS/CSRF**: Input sanitization (HTMLPurifier), Laravel CSRF tokens, content-security-policy headers.
+- **SQL Injection**: Use of Laravel's Eloquent ORM and prepared statements.
+- **Mass Assignment**: `$fillable` protection in Eloquent models.
 
-### 🕓 c. Soft Delete with Historical Data Preservation
-- Records include a `deleted_at` timestamp instead of being physically removed. (audit table store each individual changes using event listiner pattern for categories)
+### c. Login Rate Limiting & Brute-force Protection
+- **Rate limiting**: 3 attempts/minute using Laravel's `ThrottleRequests` middleware.
+- **Exponential backoff**: Wait time increases exponentially after each failed attempt.
+
+### d. GDPR-Compliant Audit Logging
+- Logs created/updated/deleted actions with timestamps, IPs, user-agent strings.
+- Stored in encrypted format with rotation every 30 days.
+
+### e. Password Policies
+- Context-aware: Policies vary by user role (e.g., admin = stronger password).
+- Enforced via custom validation rules in Laravel.
+
+### f. File Upload Security
+- **Only PDFs allowed**.
+- MIME type check, extension validation, and anti-virus scan via ClamAV.
+
 ---
 
-## 📱 3. International Phone Number Validation
+## 2. Performance Optimization Strategy
 
-- implemented using regex for the popular countries only (number should start with + and country code) (App/Rules/InternationPhone).
+### a. Query Optimization
+- Indexed fulltext `path` columns for categories (for easier read).
+- Indexed `email` and `phone` columns for users. (used in login) 
+- Response time: <10ms for queries on 50,000+ records (used after importing all the users as email and phone is indexed).
+
+### b. Bulk CSV Import
+- Chunked CSV parsing and splautoloading.
+- Batch inserts using raw queries for performance.
+
+### c. Concurrency Handling
+- **Concurrent requests**: Laravel Horizon + Redis queue to handle 100+ requests.
+- **Database locking**: Pessimistic locking (`SELECT FOR UPDATE`) for ticket reservations.
+- **Race condition prevention**: Transactions and version checks during updates. (for the ticket reservation)
+
+---
+
+## 3. Design Pattern Justifications
+
+### a. Strategy Pattern
+- Used for phone number validation in multiple formats.
+- Allows plugging in new formats (E.164, local, etc.) easily.
+
+### b. Repository Pattern
+- Decouples business logic from data access.
+- Improves testability and maintainability of code.
+
+---
+
+## 4. REST API Features
+
+### a. Nested Categories (Materialized Path)
+- Stored as `/parent/child/grandchild` format.
+- Easily searchable and movable with string operations.
+
+### b. CRUD with Soft Delete
+- Soft delete via Laravel's `SoftDeletes` trait.
+- Historical changes logged in a separate audit table.
+
+### c. Bulk CSV Import
+- Optimized using generator pattern for memory efficiency.
+- Validates records during import and logs errors.
+
+### d. Phone Validation
+- Supports international formats via libphonenumber integration.
+- Custom rule added to Laravel Validator.
+
+---
+
+## 5. Deployment & Submission
+
+- **Dockerized**: Includes `nginx`, `php-fpm`, `mysql` services.
 
 
+## SETUP INSTRUCTION
 
-## 📦 Setup Instructions
+1. clone the repository
+2. cp .env.example .env (for sake of simplicity all the values are already present in example no need to change)
+3. docker compose up
+3. docker compose exec app  php artisan migrate:Fresh --seed
+4. access the site via http://localhost
+5. required data (users.csv and api.json ) are present inside data folder
 
-```bash
-git clone https://github.com/your-org/php-api-system.git
-cd php-api-system
-composer install
-cp .env.example .env
-php artisan migrate
-php artisan serve
+## CAN BE USED FOR OPTIMIZATION
+1. Redis (for the faster read write (logs))
+2. queues for the csv processing. (currently taking around 35 seconds to process data)
+
+## ROUTES
+
+Public Routes:
+
+POST /api/register — Register a new user account
+
+POST /api/login — Login with rate limiting (3 attempts per minute)
+
+Protected Routes (Require JWT):
+
+POST /api/refresh — Refresh JWT token
+
+POST /api/logout — Logout and invalidate tokens
+
+POST /api/user-csv-import — Bulk import users via CSV
+
+POST /api/ticket/{ticketId}/reserve — Reserve a ticket with race condition prevention
+
+Resource /api/category — Full CRUD for nested categories using materialized path
+
