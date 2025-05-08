@@ -1,62 +1,59 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# PHP REST API with Secure JWT Auth, Nested Categories & High Performance
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+This project is a robust PHP backend system implementing secure JWT authentication, scalable REST APIs for nested categories, international phone validation, and optimized performance for large datasets.
 
-## About Laravel
+---
 
-Laravel is a . application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🔐 1. JWT Authentication with Refresh Tokens
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### ✅ Features:
+- **Stateless Auth**: Uses short-lived access tokens and refresh tokens for secure, scalable login sessions. (used package tymon/jwt-auth)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 🛡 a. Security Vulnerabilities Prevention
+- **SQL Injection**: Handled via prepared statements (PDO).
+- **XSS**: Output escaping and CSP headers applied.
+- **CSRF**: JWT stored outside cookies and verified on each request, with CSRF tokens if needed.
 
-## Learning Laravel
+### 🚦 b. Rate Limiting (3 attempts/minute)
+- Implemented with middleware to track failed login attempts per IP.
+- Blocks further attempts after 3 failures per minute per user/IP (used laravel throttle middleware).
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 🛑 c. Brute-force Protection with Exponential Backoff
+- After each failed login, the delay before retry increases exponentially (1s, 2s, 4s, ...) (App\Services\LoginAttemptService).
+- Backoff resets after a successful login or timeout period.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 🧱 d. Design Patterns Used
+- **Repository Pattern**: For categories module
+- **Service Pattern**:  Used service pattern for JWT, CSVImport and login service
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## 🌐 2. REST API
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 🧩 a. CRUD for Nested Categories (Materialized Path)
+- Implements nested category trees using materialized path (e.g., `1/2/5`).
+- Enables efficient querying of entire branches, parents, or children.
 
-### Premium Partners
+### 📥 b. Bulk CSV Import with Memory Optimization
+- Large CSV files are processed in chunks using `fgetcsv()` with stream handling.
+- Ensures memory footprint stays constant regardless of file size.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development/)**
-- **[Active Logic](https://activelogic.com)**
+### 🕓 c. Soft Delete with Historical Data Preservation
+- Records include a `deleted_at` timestamp instead of being physically removed. (audit table store each individual changes using event listiner pattern for categories)
+---
 
-## Contributing
+## 📱 3. International Phone Number Validation
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- implemented using regex for the popular countries only (number should start with + and country code) (App/Rules/InternationPhone).
 
-## Code of Conduct
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-## Security Vulnerabilities
+## 📦 Setup Instructions
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# wolfmatrix
+```bash
+git clone https://github.com/your-org/php-api-system.git
+cd php-api-system
+composer install
+cp .env.example .env
+php artisan migrate
+php artisan serve
